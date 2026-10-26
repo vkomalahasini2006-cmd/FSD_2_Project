@@ -2,6 +2,7 @@ export type Category = 'Electronics & Cameras' | 'Bikes & Cycles' | 'Fashion & D
 
 export type Product = {
   id: string;
+  ownerId?: string;
   title: string;
   description: string;
   category: Category;
@@ -21,3 +22,13 @@ export type Product = {
 export type CartItem = { product: Product; startDate: string; endDate: string };
 
 export type Booking = CartItem & { status: 'Requested' | 'Approved' | 'Paid' | 'Active' | 'Returned' | 'Completed' | 'Cancelled'; };
+
+export type UserRole = 'renter' | 'owner';
+
+export type BookingRecord = {
+  id: string;
+  items: CartItem[];
+  notes: string;
+  status: Booking['status'];
+  createdAt: string;
+};
