@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  RENTER
+  OWNER
+  ADMIN
+}
+
+model User {
+  id              String      @id @default(uuid())
+  name            String
+  email           String      @unique
+  phone           String?
+  passwordHash    String
+  role            Role        @default(RENTER)
+  isEmailVerified Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  otps            EmailOtp[]
+  listings        Listing[]
+
+  @@index([email])
+}
+
+model EmailOtp {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  otpHash   String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  icon      String
+  createdAt DateTime  @default(now())
+  listings  Listing[]
+}
+
+model Listing {
+  id               String   @id @default(uuid())
+  ownerId          String
+  owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title            String
+  description      String
+  categoryId       String
+  category         Category @relation(fields: [categoryId], references: [id])
+  pricePerDay      Float
+  depositAmount    Float
+  area             String
+  privateAddress   String
+  images           String[]
+  pickupPreference String
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([pricePerDay])
+  @@index([area])
+  @@index([ownerId])
+  @@index([isActive])
+}
