@@ -50,7 +50,7 @@ function ProductCard({ product, compact = false }: { product: Product; compact?:
   const { user } = useAuth();
   const navigate = useNavigate();
   const [added, setAdded] = useState(false);
-  const handleAdd = (event: React.MouseEvent) => { event.stopPropagation(); if (!user) { navigate(`/login?redirect=${encodeURIComponent(`/product/${product.id}`)}&reason=cart`); return; } if (user.role !== 'renter') { navigate('/owner-dashboard'); return; } addToCart(product); setAdded(true); window.setTimeout(() => setAdded(false), 1500); };
+  const handleAdd = (event: React.MouseEvent) => { event.stopPropagation(); if (!user) { navigate(`/login?redirect=${encodeURIComponent(`/product/${product.id}`)}&reason=cart`); return; } if (user.role !== 'renter') { toggleWishlist(product.id); setAdded(true); window.setTimeout(() => setAdded(false), 1500); return; } addToCart(product); setAdded(true); window.setTimeout(() => setAdded(false), 1500); };
   return <article className={`product-card ${compact ? 'compact' : ''}`} onClick={() => navigate(`/product/${product.id}`)}>
     <div className="product-image">
       <img src={product.image} alt={product.title} loading="lazy" />
@@ -67,7 +67,7 @@ function ProductCard({ product, compact = false }: { product: Product; compact?:
         <span className="verified"><ShieldCheck size={13} />{product.owner.verified ? 'Verified owner' : 'New owner'}</span>
       </div>
       <div className="price-row"><div><strong>{formatCurrency(product.dailyPrice)}</strong><span>/ day</span></div><small>Deposit {formatCurrency(product.securityDeposit)}</small></div>
-      <button className={`add-button ${added ? 'added' : ''}`} onClick={handleAdd}>{added ? <><Check size={16} />Added to cart</> : <><ShoppingBag size={16} />Add to rental cart</>}</button>
+      <button className={`add-button ${added ? 'added' : ''}`} onClick={handleAdd}>{added ? <><Check size={16} />{user?.role === 'owner' ? 'Saved to wishlist' : 'Added to cart'}</> : <>{user?.role === 'owner' ? <><Heart size={16} />Save to wishlist</> : <><ShoppingBag size={16} />Add to rental cart</>}</>}</button>
     </div>
   </article>;
 }

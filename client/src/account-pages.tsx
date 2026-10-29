@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Box, Camera, Check, CircleUserRound, Package, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowRight, Box, Camera, Check, CircleUserRound, Heart, Package, ShieldCheck, Trash2 } from 'lucide-react';
 import { apiRequest } from './api';
 import { useAuth } from './auth-context';
 import { useApp } from './context';
+import { useProducts } from './products-context';
 import { categories } from './data';
 import type { BookingRecord, Product, UserRole } from './types';
 import { formatCurrency, rentalDays } from './utils';
@@ -191,10 +192,15 @@ function ListItemPage() {
 
 function OwnerDashboardPage() {
   const { token } = useAuth();
+  const { wishlist, toggleWishlist, isWishlisted } = useApp();
+  const { products: allProducts, loading: productsLoading } = useProducts();
+  const [activeTab, setActiveTab] = useState<'listings' | 'wishlist'>('listings');
   const [listings, setListings] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const navigate = useNavigate();
+
   const loadListings = () => {
     if (!token) return;
     setLoading(true);
@@ -205,6 +211,7 @@ function OwnerDashboardPage() {
       .finally(() => setLoading(false));
   };
   useEffect(loadListings, [token]);
+
   const remove = async (id: string) => {
     if (!token) return;
     setDeleting(id);
@@ -218,7 +225,109 @@ function OwnerDashboardPage() {
       setDeleting(null);
     }
   };
-  return <main className="page-shell rentals-page"><div className="page-title"><div><p className="kicker">Your marketplace</p><h1>Owner dashboard</h1><p>Create and manage your listings.</p></div><Link to="/list-item" className="primary-button">Create a listing <ArrowRight size={17} /></Link></div>{error && <p className="error-text" role="alert">{error}</p>}{loading ? <p>Loading your listings...</p> : listings.length ? <div className="booking-list">{listings.map((product) => <article className="booking-card" key={product.id}><img src={product.image} alt="" /><div><span className="eyebrow">{product.category}</span><h3>{product.title}</h3><p>{formatCurrency(product.dailyPrice)} / day · {product.location}</p></div><button className="secondary-button" disabled={deleting === product.id} onClick={() => void remove(product.id)} aria-label={`Delete ${product.title}`}><Trash2 size={16} />{deleting === product.id ? 'Removing...' : 'Remove'}</button></article>)}</div> : <div className="empty-state"><Package size={28} /><h2>No listings yet</h2><p>Create your first listing to start earning from items you own.</p><Link to="/list-item" className="primary-button">Create a listing <ArrowRight size={17} /></Link></div>}</main>;
+
+  const savedProducts = allProducts.filter((p) => wishlist.includes(p.id));
+
+  return (
+    <main className="page-shell rentals-page">
+      <div className="page-title">
+        <div>
+          <p className="kicker">Your marketplace</p>
+          <h1>Owner dashboard</h1>
+          <p>Manage your listings and explore items to rent.</p>
+        </div>
+        <Link to="/list-item" className="primary-button">Create a listing <ArrowRight size={17} /></Link>
+      </div>
+
+      <div className="tabs" style={{ marginBottom: '28px' }}>
+        <button
+          className={activeTab === 'listings' ? 'active' : ''}
+          onClick={() => setActiveTab('listings')}
+        >
+          <Package size={15} style={{ display: 'inline', marginRight: 6 }} />
+          My Listings {listings.length > 0 && <b style={{ marginLeft: 4 }}>{listings.length}</b>}
+        </button>
+        <button
+          className={activeTab === 'wishlist' ? 'active' : ''}
+          onClick={() => setActiveTab('wishlist')}
+        >
+          <Heart size={15} style={{ display: 'inline', marginRight: 6 }} />
+          My Wishlist {wishlist.length > 0 && <b style={{ marginLeft: 4 }}>{wishlist.length}</b>}
+        </button>
+      </div>
+
+      {error && <p className="error-text" role="alert">{error}</p>}
+
+      {activeTab === 'listings' && (
+        loading ? (
+          <p>Loading your listings...</p>
+        ) : listings.length ? (
+          <div className="booking-list">
+            {listings.map((product) => (
+              <article className="booking-card" key={product.id}>
+                <img src={product.image} alt="" />
+                <div>
+                  <span className="eyebrow">{product.category}</span>
+                  <h3>{product.title}</h3>
+                  <p>{formatCurrency(product.dailyPrice)} / day · {product.location}</p>
+                </div>
+                <button
+                  className="secondary-button"
+                  disabled={deleting === product.id}
+                  onClick={() => void remove(product.id)}
+                  aria-label={`Delete ${product.title}`}
+                >
+                  <Trash2 size={16} />{deleting === product.id ? 'Removing...' : 'Remove'}
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <Package size={28} />
+            <h2>No listings yet</h2>
+            <p>Create your first listing to start earning from items you own.</p>
+            <Link to="/list-item" className="primary-button">Create a listing <ArrowRight size={17} /></Link>
+          </div>
+        )
+      )}
+
+      {activeTab === 'wishlist' && (
+        productsLoading ? (
+          <p>Loading wishlist...</p>
+        ) : savedProducts.length ? (
+          <div className="booking-list">
+            {savedProducts.map((product) => (
+              <article className="booking-card" key={product.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${product.id}`)}>
+                <img src={product.image} alt="" />
+                <div style={{ flex: 1 }}>
+                  <span className="eyebrow">{product.category}</span>
+                  <h3>{product.title}</h3>
+                  <p>{formatCurrency(product.dailyPrice)} / day · {product.location}</p>
+                  <small style={{ color: '#89949e' }}>Deposit: {formatCurrency(product.securityDeposit)} · {product.condition}</small>
+                </div>
+                <button
+                  className={`secondary-button${isWishlisted(product.id) ? ' active' : ''}`}
+                  style={{ color: '#e65365', borderColor: '#fcd5db', background: '#fff5f6' }}
+                  onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
+                  aria-label={`Remove ${product.title} from wishlist`}
+                >
+                  <Heart size={16} fill="currentColor" /> Saved
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <Heart size={28} />
+            <h2>Your wishlist is empty</h2>
+            <p>Tap the heart icon on any rental to save it here for later.</p>
+            <Link to="/browse" className="primary-button">Browse rentals <ArrowRight size={17} /></Link>
+          </div>
+        )
+      )}
+    </main>
+  );
 }
 
 export { CheckoutPage, LoginPage, ListItemPage, MyRentalsPage, OwnerDashboardPage, ProfilePage };
