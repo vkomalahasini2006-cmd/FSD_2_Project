@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -14,24 +14,22 @@ enum Role {
 }
 
 model User {
-  id              String      @id @default(uuid())
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
   name            String
-  email           String      @unique
+  email           String     @unique
   phone           String?
   passwordHash    String
-  role            Role        @default(RENTER)
-  isEmailVerified Boolean     @default(false)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  role            Role       @default(RENTER)
+  isEmailVerified Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
   otps            EmailOtp[]
   listings        Listing[]
-
-  @@index([email])
 }
 
 model EmailOtp {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   otpHash   String
   expiresAt DateTime
@@ -43,7 +41,7 @@ model EmailOtp {
 }
 
 model Category {
-  id        String    @id @default(uuid())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   name      String    @unique
   icon      String
   createdAt DateTime  @default(now())
@@ -51,12 +49,12 @@ model Category {
 }
 
 model Listing {
-  id               String   @id @default(uuid())
-  ownerId          String
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  ownerId          String   @db.ObjectId
   owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title            String
   description      String
-  categoryId       String
+  categoryId       String   @db.ObjectId
   category         Category @relation(fields: [categoryId], references: [id])
   pricePerDay      Float
   depositAmount    Float
