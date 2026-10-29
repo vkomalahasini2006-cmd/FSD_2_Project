@@ -10,7 +10,9 @@ const sanitizeUser = (user) => {
   return userWithoutPassword;
 };
 
-export const register = async ({ name, email, phone, password, role }) => {
+export const register = async ({ name, fullName, email, phone, password, role }) => {
+  const userName = fullName || name;
+  const normalizedRole = role ? role.toUpperCase() : 'RENTER';
   const existingUser = await prisma.user.findUnique({
     where: { email: email.toLowerCase() }
   });
@@ -19,36 +21,23 @@ export const register = async ({ name, email, phone, password, role }) => {
     if (existingUser.isEmailVerified) {
       throw new AppError('An account with this email address already exists. Please log in.', 409, 'EMAIL_EXISTS');
     }
-    // If user previously registered but never verified, update their info and re-issue OTP
     const passwordHash = await bcrypt.hash(password, 10);
     const updatedUser = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
-        name,
+        name: userName,
         phone: phone || null,
         passwordHash,
-        role
+        role: normalizedRole,
+        isEmailVerified: true
       }
     });
 
-    const otp = generateOtp();
-    const otpHash = await hashOtp(otp);
-
-    await prisma.emailOtp.deleteMany({ where: { userId: updatedUser.id } });
-    await prisma.emailOtp.create({
-      data: {
-        userId: updatedUser.id,
-        otpHash,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-        attempts: 0
-      }
-    });
-
-    await emailService.sendOtpEmail(updatedUser.email, otp, updatedUser.name);
-
+    const token = signToken({ userId: updatedUser.id, role: updatedUser.role });
     return {
       user: sanitizeUser(updatedUser),
-      message: 'Registration initiated. Please verify your email with the 6-digit OTP sent to your inbox.'
+      token,
+      message: 'Account created successfully.'
     };
   }
 
@@ -56,32 +45,21 @@ export const register = async ({ name, email, phone, password, role }) => {
   const passwordHash = await bcrypt.hash(password, 10);
   const newUser = await prisma.user.create({
     data: {
-      name,
+      name: userName,
       email: email.toLowerCase(),
       phone: phone || null,
       passwordHash,
-      role,
-      isEmailVerified: false
+      role: normalizedRole,
+      isEmailVerified: true
     }
   });
 
-  const otp = generateOtp();
-  const otpHash = await hashOtp(otp);
-
-  await prisma.emailOtp.create({
-    data: {
-      userId: newUser.id,
-      otpHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      attempts: 0
-    }
-  });
-
-  await emailService.sendOtpEmail(newUser.email, otp, newUser.name);
+  const token = signToken({ userId: newUser.id, role: newUser.role });
 
   return {
     user: sanitizeUser(newUser),
-    message: 'Registration successful. A 6-digit verification code has been sent to your email.'
+    token,
+    message: 'Account created successfully.'
   };
 };
 

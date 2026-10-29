@@ -40,8 +40,9 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// API Root Mount
+// API Root Mount (supports both /api and direct / routes)
 app.use('/api', routes);
+app.use('/', routes);
 
 // 404 Handler for unknown routes
 app.use((req, res) => {

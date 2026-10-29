@@ -7,7 +7,10 @@ export const register = async (req, res, next) => {
     return ApiResponse.success(res, {
       statusCode: 201,
       message: result.message,
-      data: { user: result.user }
+      data: {
+        user: result.user,
+        token: result.token
+      }
     });
   } catch (error) {
     next(error);

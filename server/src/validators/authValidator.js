@@ -1,18 +1,20 @@
 import { z } from 'zod';
 
 export const registerSchema = z.object({
-  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').optional(),
+  fullName: z.string().trim().min(2, 'Full name must be at least 2 characters').optional(),
   email: z.string().trim().email('Invalid email address').toLowerCase(),
   phone: z.string().trim().optional().or(z.literal('')),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
-  role: z.enum(['RENTER', 'OWNER'], {
-    errorMap: () => ({ message: 'Role must be either RENTER or OWNER' })
-  })
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.preprocess(
+    (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+    z.enum(['RENTER', 'OWNER'], {
+      errorMap: () => ({ message: 'Role must be either RENTER or OWNER' })
+    })
+  )
+}).refine((data) => data.name || data.fullName, {
+  message: 'Name is required',
+  path: ['name']
 });
 
 export const verifyEmailSchema = z.object({
