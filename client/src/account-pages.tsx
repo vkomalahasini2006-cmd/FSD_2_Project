@@ -112,9 +112,13 @@ function CheckoutPage() {
 
 function MyRentalsPage() {
   const { token } = useAuth();
+  const { wishlist, toggleWishlist, isWishlisted, addToCart } = useApp();
+  const { products: allProducts, loading: productsLoading } = useProducts();
+  const [activeTab, setActiveTab] = useState<'rentals' | 'wishlist'>('rentals');
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!token) return;
@@ -124,9 +128,121 @@ function MyRentalsPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  if (loading) return <main className="page-shell">Loading your rentals...</main>;
-  if (error) return <main className="page-shell"><p className="error-text" role="alert">{error}</p></main>;
-  return <main className="page-shell rentals-page"><div className="page-title"><div><p className="kicker">Your rental journey</p><h1>My rentals</h1><p>Keep track of your requests, active rentals and returns.</p></div></div>{bookings.length ? <div className="booking-list">{bookings.map((booking) => <article className="booking-card" key={booking.id}><Package size={22} /><div><span className="status-pill">{booking.status}</span><h3>Booking {booking.id.slice(0, 8)}</h3>{booking.items.map((item) => <p key={item.product.id}>{item.product.title} · {item.startDate} — {item.endDate} · {formatCurrency(item.product.dailyPrice * rentalDays(item.startDate, item.endDate))}</p>)}<small>{new Date(booking.createdAt).toLocaleString()}</small></div></article>)}</div> : <div className="empty-state"><h2>No rental requests yet</h2><p>Once you submit a booking request, it will appear here.</p><Link to="/browse" className="primary-button">Browse rentals <ArrowRight size={17} /></Link></div>}<div className="status-guide"><h2>Rental status guide</h2><div><span className="status-dot requested" /><strong>Requested</strong><span>Owner is reviewing your request</span></div><div><span className="status-dot approved" /><strong>Approved</strong><span>Dates and pickup are confirmed</span></div><div><span className="status-dot active" /><strong>Active</strong><span>You have the item</span></div><div><span className="status-dot completed" /><strong>Completed</strong><span>Item returned successfully</span></div></div></main>;
+  const savedProducts = allProducts.filter((p) => wishlist.includes(p.id));
+
+  return (
+    <main className="page-shell rentals-page">
+      <div className="page-title">
+        <div>
+          <p className="kicker">Your rental journey</p>
+          <h1>My rentals</h1>
+          <p>Track your bookings and manage saved items.</p>
+        </div>
+      </div>
+
+      <div className="tabs" style={{ marginBottom: '28px' }}>
+        <button
+          className={activeTab === 'rentals' ? 'active' : ''}
+          onClick={() => setActiveTab('rentals')}
+        >
+          <Package size={15} style={{ display: 'inline', marginRight: 6 }} />
+          My Rentals {bookings.length > 0 && <b style={{ marginLeft: 4 }}>{bookings.length}</b>}
+        </button>
+        <button
+          className={activeTab === 'wishlist' ? 'active' : ''}
+          onClick={() => setActiveTab('wishlist')}
+        >
+          <Heart size={15} style={{ display: 'inline', marginRight: 6 }} />
+          My Wishlist {wishlist.length > 0 && <b style={{ marginLeft: 4 }}>{wishlist.length}</b>}
+        </button>
+      </div>
+
+      {activeTab === 'rentals' && (
+        loading ? (
+          <p>Loading your rentals...</p>
+        ) : error ? (
+          <p className="error-text" role="alert">{error}</p>
+        ) : bookings.length ? (
+          <div className="booking-list">
+            {bookings.map((booking) => (
+              <article className="booking-card" key={booking.id}>
+                <Package size={22} />
+                <div>
+                  <span className="status-pill">{booking.status}</span>
+                  <h3>Booking {booking.id.slice(0, 8)}</h3>
+                  {booking.items.map((item) => (
+                    <p key={item.product.id}>
+                      {item.product.title} · {item.startDate} — {item.endDate} · {formatCurrency(item.product.dailyPrice * rentalDays(item.startDate, item.endDate))}
+                    </p>
+                  ))}
+                  <small>{new Date(booking.createdAt).toLocaleString()}</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h2>No rental requests yet</h2>
+            <p>Once you submit a booking request, it will appear here.</p>
+            <Link to="/browse" className="primary-button">Browse rentals <ArrowRight size={17} /></Link>
+          </div>
+        )
+      )}
+
+      {activeTab === 'wishlist' && (
+        productsLoading ? (
+          <p>Loading wishlist...</p>
+        ) : savedProducts.length ? (
+          <div className="booking-list">
+            {savedProducts.map((product) => (
+              <article className="booking-card" key={product.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/product/${product.id}`)}>
+                <img src={product.image} alt="" />
+                <div style={{ flex: 1 }}>
+                  <span className="eyebrow">{product.category}</span>
+                  <h3>{product.title}</h3>
+                  <p>{formatCurrency(product.dailyPrice)} / day · {product.location}</p>
+                  <small style={{ color: '#89949e' }}>Deposit: {formatCurrency(product.securityDeposit)} · {product.condition}</small>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button
+                    className="primary-button"
+                    style={{ fontSize: 12, padding: '8px 14px' }}
+                    onClick={(e) => { e.stopPropagation(); addToCart(product); navigate('/cart'); }}
+                  >
+                    Rent it <ArrowRight size={14} />
+                  </button>
+                  <button
+                    className="secondary-button"
+                    style={{ color: '#e65365', borderColor: '#fcd5db', background: '#fff5f6', fontSize: 12, padding: '8px 14px' }}
+                    onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
+                  >
+                    <Heart size={14} fill="currentColor" /> Remove
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <Heart size={28} />
+            <h2>Your wishlist is empty</h2>
+            <p>Tap the heart icon on any rental to save it here for later.</p>
+            <Link to="/browse" className="primary-button">Browse rentals <ArrowRight size={17} /></Link>
+          </div>
+        )
+      )}
+
+      {activeTab === 'rentals' && !loading && !error && (
+        <div className="status-guide">
+          <h2>Rental status guide</h2>
+          <div><span className="status-dot requested" /><strong>Requested</strong><span>Owner is reviewing your request</span></div>
+          <div><span className="status-dot approved" /><strong>Approved</strong><span>Dates and pickup are confirmed</span></div>
+          <div><span className="status-dot active" /><strong>Active</strong><span>You have the item</span></div>
+          <div><span className="status-dot completed" /><strong>Completed</strong><span>Item returned successfully</span></div>
+        </div>
+      )}
+    </main>
+  );
 }
 
 type ListingForm = {
@@ -192,7 +308,7 @@ function ListItemPage() {
 
 function OwnerDashboardPage() {
   const { token } = useAuth();
-  const { wishlist, toggleWishlist, isWishlisted } = useApp();
+  const { wishlist, toggleWishlist, isWishlisted, addToCart } = useApp();
   const { products: allProducts, loading: productsLoading } = useProducts();
   const [activeTab, setActiveTab] = useState<'listings' | 'wishlist'>('listings');
   const [listings, setListings] = useState<Product[]>([]);
@@ -306,14 +422,23 @@ function OwnerDashboardPage() {
                   <p>{formatCurrency(product.dailyPrice)} / day · {product.location}</p>
                   <small style={{ color: '#89949e' }}>Deposit: {formatCurrency(product.securityDeposit)} · {product.condition}</small>
                 </div>
-                <button
-                  className={`secondary-button${isWishlisted(product.id) ? ' active' : ''}`}
-                  style={{ color: '#e65365', borderColor: '#fcd5db', background: '#fff5f6' }}
-                  onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
-                  aria-label={`Remove ${product.title} from wishlist`}
-                >
-                  <Heart size={16} fill="currentColor" /> Saved
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button
+                    className="primary-button"
+                    style={{ fontSize: 12, padding: '8px 14px' }}
+                    onClick={(e) => { e.stopPropagation(); addToCart(product); navigate('/cart'); }}
+                  >
+                    Rent it <ArrowRight size={14} />
+                  </button>
+                  <button
+                    className="secondary-button"
+                    style={{ color: '#e65365', borderColor: '#fcd5db', background: '#fff5f6', fontSize: 12, padding: '8px 14px' }}
+                    onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }}
+                    aria-label={`Remove ${product.title} from wishlist`}
+                  >
+                    <Heart size={14} fill="currentColor" /> Remove
+                  </button>
+                </div>
               </article>
             ))}
           </div>
